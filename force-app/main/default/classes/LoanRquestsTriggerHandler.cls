@@ -1,107 +1,91 @@
 /**
  * @Class Name: LoanRequestsTriggerHandler
- * @Author: Elon Ifarch
+ * @Description: Contains business logic for LoanRequest__c trigger events.
+ *              Ensures clean separation of concerns and support for bulk operations.
+ * @Created by: Elon Ifrach
  * @Created Date: 2025-12-04
- * @Description:
- *  This class contains the business logic for handling trigger events
- *  on the LoanRequest__c object. It performs the following actions:
- *
- *    1. Creates a high-priority Task assigned to a manager when the
- *       loan amount exceeds 250,000.
- *
- *    2. Sends an email notification to the customer when the loan status
- *       changes to "Approved".
- *
- *    3. Inserts an Audit__c record whenever the loan status is changed.
- *
- *  The class supports bulk operations and is intended to be called
- *  directly from a trigger.
  */
-public class LoanRequestsTriggerHandler {
+public with sharing class LoanRequestsTriggerHandler {
 
     /**
-     * @Method Name: handleTrigger
-     * @Input:
-     *    newRecords - List<LoanRequest__c> : New LoanRequest records (Trigger.new)
-     *    oldMap     - Map<Id, LoanRequest__c> : Old versions of the records (Trigger.oldMap)
-     *
-     * @Description:
-     *  Main processing method for LoanRequest__c trigger events.
-     *
-     *  For each LoanRequest record:
-     *
-     *    1. **Manager Task Creation**
-     *       - If LoanAmount__c > 250,000: creates a high-priority Task linked
-     *         to the LoanRequest record.
-     *
-     *    2. **Approval Email Notification**
-     *       - If the status changed to "Approved": sends a notification email
-     *         to the customer.
-     *
-     *    3. **Audit Logging**
-     *       - If the status changed: inserts an Audit__c entry documenting
-     *         the status transition.
-     *
-     *  After processing all records, bulk DML operations are executed for:
-     *  Task insert, email send, and Audit__c insert.
-     *
-     * @Created by: Elon Ifarch
-     * @Created Date: 2025-12-04
+     * @Method Name: beforeInsert
+     * @Input: List<LoanRequest__c> newRecords
+     * @Description: Validates new LoanRequest__c records before insertion.
      */
-    public static void handleTrigger(List<LoanRequest__c> newRecords, Map<Id, LoanRequest__c> oldMap) {
-
-        List<Task> tasksToCreate = new List<Task>();
-        List<Messaging.SingleEmailMessage> emailsToSend = new List<Messaging.SingleEmailMessage>();
-        List<Audit__c> auditsToInsert = new List<Audit__c>();
-
-        for (LoanRequest__c lr : newRecords) {
-
-            // 1. Manager Task creation for high loan amount
-            if (lr.LoanAmount__c > 250000) {
-                Task t = new Task(
-                    Subject = 'High Loan Alert',
-                    Description = 'Loan request over 250,000 for ' + lr.Customer__r.Name,
-                    OwnerId = 'INSERT_MANAGER_USER_ID', // Replace with actual manager Id
-                    WhatId = lr.Id,
-                    Status = 'Not Started',
-                    Priority = 'High'
-                );
-                tasksToCreate.add(t);
+    public void beforeInsert(List<LoanRequest__c> newRecords) {
+        for (LoanRequest__c req : newRecords) {
+            // Ensure RequestDate__c is populated
+            if (req.RequestDate__c == null) {
+                req.RequestDate__c = Date.today();
             }
 
-            // 2. Send approval email when status becomes "Approved"
-            if (oldMap != null && oldMap.containsKey(lr.Id)) {
-                LoanRequest__c oldRecord = oldMap.get(lr.Id);
-                if (lr.LoanStatus__c == 'Approved' && oldRecord.LoanStatus__c != 'Approved') {
-
-                    Messaging.SingleEmailMessage email = new Messaging.SingleEmailMessage();
-                    email.setToAddresses(new String[] { lr.Customer__r.Email });
-                    email.setSubject('Loan Request Approved');
-                    email.setPlainTextBody('Your loan request has been approved.');
-                    
-                    emailsToSend.add(email);
-                }
+            // Default status
+            if (String.isBlank(req.LoanStatus__c)) {
+                req.LoanStatus__c = 'Draft';
             }
+        }
+    }
 
-            // 3. Audit record creation when status changes
-            if (oldMap != null && oldMap.containsKey(lr.Id)) {
-                LoanRequest__c oldRecord = oldMap.get(lr.Id);
-                if (lr.LoanStatus__c != oldRecord.LoanStatus__c) {
+    /**
+     * @Method Name: beforeUpdate
+     * @Input: List<LoanRequest__c> newRecords, Map<Id, LoanRequest__c> oldMap
+     * @Description: Validates LoanRequest__c records before update.
+     */
+    public void beforeUpdate(List<LoanRequest__c> newRecords, Map<Id, LoanRequest__c> oldMap) {
+        for (LoanRequest__c req : newRecords) {
+            LoanRequest__c oldRec = oldMap.get(req.Id);
 
-                    Audit__c audit = new Audit__c(
-                        LoanRequest__c = lr.Id,
-                        CustomerName__c = lr.Customer__r.Name,
-                        ChangedStatus__c = lr.LoanStatus__c
-                    );
+            // Prevent status regression (e.g., Approved -> Draft)
+            if (oldRec.LoanStatus__c == 'Approved' && req.LoanStatus__c == 'Draft') {
+                req.LoanStatus__c = oldRec.LoanStatus__c;
+            }
+        }
+    }
 
-                    auditsToInsert.add(audit);
-                }
+    /**
+     * @Method Name: afterInsert
+     * @Input: List<LoanRequest__c> newRecords
+     * @Description: Executes post-insert automation such as audit logging.
+     */
+    public void afterInsert(List<LoanRequest__c> newRecords) {
+        List<Audit__c> audits = new List<Audit__c>();
+
+        for (LoanRequest__c req : newRecords) {
+            audits.add(new Audit__c(
+                RelatedRecordId__c = req.Id,
+                Action__c = 'Created',
+                Description__c = 'Loan request created',
+                ActionDate__c = DateTime.now()
+            ));
+        }
+
+        insert audits;
+    }
+
+    /**
+     * @Method Name: afterUpdate
+     * @Input: List<LoanRequest__c> newRecords, Map<Id, LoanRequest__c> oldMap
+     * @Description: Logs changes such as status updates.
+     */
+    public void afterUpdate(List<LoanRequest__c> newRecords, Map<Id, LoanRequest__c> oldMap) {
+        List<Audit__c> audits = new List<Audit__c>();
+
+        for (LoanRequest__c req : newRecords) {
+            LoanRequest__c oldRec = oldMap.get(req.Id);
+
+            // Log status changes
+            if (req.LoanStatus__c != oldRec.LoanStatus__c) {
+                audits.add(new Audit__c(
+                    RelatedRecordId__c = req.Id,
+                    Action__c = 'Status Changed',
+                    Description__c = 'Status changed from ' + oldRec.LoanStatus__c + ' to ' + req.LoanStatus__c,
+                    ActionDate__c = DateTime.now()
+                ));
             }
         }
 
-        // Bulk DML
-        if (!tasksToCreate.isEmpty()) insert tasksToCreate;
-        if (!emailsToSend.isEmpty()) Messaging.sendEmail(emailsToSend);
-        if (!auditsToInsert.isEmpty()) insert auditsToInsert;
+        if (!audits.isEmpty()) {
+            insert audits;
+        }
     }
 }
