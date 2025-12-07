@@ -1,0 +1,26 @@
+<template>
+    <lightning-card title="New Loan Request">
+        <div class="slds-p-around_medium">
+
+            <lightning-input label="Customer Name" value={customerName} onchange={handleCustomerNameChange}>
+            </lightning-input>
+
+            <lightning-input type="number" label="Loan Amount" value={loanAmount} onchange={handleLoanAmountChange}>
+            </lightning-input>
+
+            <lightning-combobox label="Loan Status" value={loanStatus} placeholder="Select Status"
+                options={statusOptions} onchange={handleLoanStatusChange}>
+            </lightning-combobox>
+
+            <div class="slds-m-top_medium">
+                <lightning-button variant="brand" label="Save" onclick={handleSave} class="slds-m-right_small">
+                </lightning-button>
+
+                <template if:true={isLoading}>
+                    <lightning-spinner size="medium" alternative-text="Loading"></lightning-spinner>
+                </template>
+            </div>
+
+        </div>
+    </lightning-card>
+</template>

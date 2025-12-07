@@ -1,0 +1,13 @@
+<template>
+    <div class="loan-viewer slds-box slds-m-around_medium">
+        <h2 class="slds-text-heading_medium">Loan Request Details</h2>
+        <template if:true={customerName}>
+            <p><strong>Customer Name:</strong> {customerName}</p>
+            <p><strong>Loan Amount:</strong> {loanAmount}</p>
+            <p><strong>Loan Status:</strong> {loanStatus}</p>
+        </template>
+        <template if:false={customerName}>
+            <p>No loan request data available.</p>
+        </template>
+    </div>
+</template>

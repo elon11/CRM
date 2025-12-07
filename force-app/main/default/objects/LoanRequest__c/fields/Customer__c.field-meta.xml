@@ -4,7 +4,7 @@
     <deleteConstraint>Restrict</deleteConstraint>
     <externalId>false</externalId>
     <label>Customer</label>
-    <referenceTo>Customer</referenceTo>
+    <referenceTo>Customer__c</referenceTo>
     <relationshipLabel>Loan Requests</relationshipLabel>
     <relationshipName>Loan_Requests</relationshipName>
     <required>true</required>
