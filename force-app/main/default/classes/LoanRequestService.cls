@@ -18,14 +18,11 @@ public with sharing class LoanRequestService {
 
         List<Task> tasksToInsert = new List<Task>();
 
-  
-        Id managerId = '0058e000001CC0UAAW'; // elon Id
-
         for (LoanRequest__c req : loanRequests) {
             if (req.LoanAmount__c != null && req.LoanAmount__c > 250000) {
                 Task t = new Task();
                 t.Subject = 'High Loan Amount Approval Needed';
-                t.OwnerId = managerId;
+                t.OwnerId = req.OwnerId;
                 t.WhatId = req.Id; // relate task to the LoanRequest__c
                 t.Status = 'Not Started';
                 t.Priority = 'High';
