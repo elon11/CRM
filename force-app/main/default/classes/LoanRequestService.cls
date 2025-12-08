@@ -42,43 +42,65 @@ public with sharing class LoanRequestService {
             }
         }
     }
-
-    /**
- * @Method Name: sendApprovalEmails
- * @Input: List<LoanRequest__c> loanRequests, Map<Id, LoanRequest__c> oldMap
- * @Description: Sends email notifications to customers when LoanRequest__c status changes to 'Approved'.
- *              Supports bulk operations and prevents sending duplicate emails.
- */
-public static void sendApprovalEmails(List<LoanRequest__c> loanRequests, Map<Id, LoanRequest__c> oldMap) {
-    if (loanRequests == null || loanRequests.isEmpty()) return;
-
-    List<Messaging.SingleEmailMessage> emails = new List<Messaging.SingleEmailMessage>();
-
-    for (LoanRequest__c req : loanRequests) {
-        LoanRequest__c oldRec = oldMap.get(req.Id);
-        if (oldRec == null) continue;
-
-        // Check if status changed to 'Approved'
-        if (req.LoanStatus__c == 'Approved' && oldRec.LoanStatus__c != 'Approved') {
-            if (req.Customer__r != null && String.isNotBlank(req.Customer__r.Email__c)) {
-                Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
-                mail.setToAddresses(new String[] { req.Customer__r.Email__c });
-                mail.setSubject('Your Loan Request is Approved');
-                mail.setPlainTextBody('Dear ' + req.Customer__r.Name + ',\n\n' +
-                    'Your loan request for amount ' + req.LoanAmount__c + ' has been approved.\n\n' +
-                    'Thank you,\nBank CRM System');
-                emails.add(mail);
+/**
+     * @Method Name: sendApprovalEmailsToCustomer
+     * @Input: List<LoanRequest__c> loanRequests, Map<Id, LoanRequest__c> oldMap
+     * @Description: Sends email notifications to customers when LoanRequest__c status changes to 'Approved'.
+     *              Supports bulk operations and prevents sending duplicate emails.
+     *              Uses the Email__c field on the Customer__c object.
+     * @Created by: Elon Ifrach
+     * @Created Date: 2025-12-08
+     */
+    public static void sendApprovalEmails(List<LoanRequest__c> loanRequests, Map<Id, LoanRequest__c> oldMap) {
+        if (loanRequests == null || loanRequests.isEmpty()) return;
+        // Step 1: Collect all related Customer Ids
+        Set<Id> customerIds = new Set<Id>();
+        for (LoanRequest__c lr : loanRequests) {
+            LoanRequest__c oldRec = oldMap.get(lr.Id);
+            if (oldRec != null && lr.LoanStatus__c == 'Approved' && oldRec.LoanStatus__c != 'Approved') {
+                if (lr.Customer__c != null) {
+                    customerIds.add(lr.Customer__c);
+                }
+            }
+        }
+    
+        if (customerIds.isEmpty()) return;
+    
+        // Step 2: Query Customers' email addresses
+        Map<Id, Customer__c> customersMap = new Map<Id, Customer__c>(
+            [SELECT Id, Name, Email__c FROM Customer__c WHERE Id IN :customerIds]
+        );
+    
+        // Step 3: Prepare emails
+        List<Messaging.SingleEmailMessage> emails = new List<Messaging.SingleEmailMessage>();
+        for (LoanRequest__c lr : loanRequests) {
+            LoanRequest__c oldRec = oldMap.get(lr.Id);
+            if (oldRec != null && lr.LoanStatus__c == 'Approved' && oldRec.LoanStatus__c != 'Approved') {
+                if (lr.Customer__c != null) {
+                    Customer__c cust = customersMap.get(lr.Customer__c);
+                    if (cust != null && String.isNotBlank(cust.Email__c)) {
+                        Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
+                        mail.setToAddresses(new String[] { cust.Email__c });
+                        mail.setSubject('Your Loan Request is Approved');
+                        mail.setPlainTextBody(
+                            'Dear ' + cust.Name + ',\n\n' +
+                            'Your loan request for amount ' + lr.LoanAmount__c + ' has been approved.\n\n' +
+                            'Thank you,\nBank CRM System'
+                        );
+                        emails.add(mail);
+                    }
+                }
+            }
+        }
+    
+        // Step 4: Send emails if any
+        if (!emails.isEmpty()) {
+            try {
+                Messaging.sendEmail(emails);
+            } catch (Exception e) {
+                System.debug('LoanRequestService.sendApprovalEmailsToCustomer - Email send failed: ' + e.getMessage());
             }
         }
     }
-
-    if (!emails.isEmpty()) {
-        try {
-            Messaging.sendEmail(emails);
-        } catch (Exception e) {
-            System.debug('LoanRequestService.sendApprovalEmails - Email send failed: ' + e.getMessage());
-        }
-    }
-}
 
 }
