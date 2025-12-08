@@ -1,52 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Flow xmlns="http://soap.sforce.com/2006/04/metadata">
     <actionCalls>
-        <name>Send_High_Loan_Alert_Email</name>
-        <label>Send High Loan Alert Email</label>
+        <name>High_Loan_Request_Alert</name>
+        <label>High Loan Request Alert</label>
         <locationX>0</locationX>
         <locationY>0</locationY>
-        <actionName>emailSimple</actionName>
-        <actionType>emailSimple</actionType>
+        <actionName>LoanRequest__c.High_Loan_Request_Alert</actionName>
+        <actionType>emailAlert</actionType>
         <connector>
             <targetReference>Create_Audit_Record</targetReference>
         </connector>
         <flowTransactionModel>CurrentTransaction</flowTransactionModel>
         <inputParameters>
-            <name>recipientAddresses</name>
-            <value/>
-        </inputParameters>
-        <inputParameters>
-            <name>senderType</name>
+            <name>SObjectRowId</name>
             <value>
-                <stringValue>DefaultWorkflowUser</stringValue>
+                <elementReference>$Record.Id</elementReference>
             </value>
-        </inputParameters>
-        <inputParameters>
-            <name>senderAddress</name>
-            <value>
-                <stringValue>elonyifrah@gmail.com</stringValue>
-            </value>
-        </inputParameters>
-        <inputParameters>
-            <name>composeEmailContent</name>
-            <value>
-                <stringValue>True</stringValue>
-            </value>
-        </inputParameters>
-        <inputParameters>
-            <name>emailSubject</name>
-            <value>
-                <elementReference>email_subject</elementReference>
-            </value>
-        </inputParameters>
-        <inputParameters>
-            <name>emailBody</name>
-            <value>
-                <stringValue>&lt;p&gt;{!email_subject}&lt;/p&gt;</stringValue>
-            </value>
-        </inputParameters>
-        <inputParameters>
-            <name>sendRichBody</name>
         </inputParameters>
     </actionCalls>
     <apiVersion>65.0</apiVersion>
@@ -105,12 +74,17 @@
                 </rightValue>
             </conditions>
             <connector>
-                <targetReference>Send_High_Loan_Alert_Email</targetReference>
+                <targetReference>High_Loan_Request_Alert</targetReference>
             </connector>
             <label>LoanAmount__c Greater Than 250000</label>
         </rules>
     </decisions>
     <description>Automatically manages loan requests by updating the related customer status, sending alerts for high-value loans, and logging actions in Audit__c when the loan status changes.</description>
+    <formulas>
+        <name>ActionDate</name>
+        <dataType>DateTime</dataType>
+        <expression>NOW()</expression>
+    </formulas>
     <formulas>
         <name>chekAction</name>
         <dataType>String</dataType>
@@ -152,6 +126,12 @@
         <label>Create Audit Record</label>
         <locationX>0</locationX>
         <locationY>0</locationY>
+        <inputAssignments>
+            <field>ActionDate__c</field>
+            <value>
+                <elementReference>ActionDate</elementReference>
+            </value>
+        </inputAssignments>
         <inputAssignments>
             <field>Action__c</field>
             <value>
@@ -232,8 +212,18 @@
     <status>Active</status>
     <textTemplates>
         <name>email_body</name>
-        <isViewedAsPlainText>false</isViewedAsPlainText>
-        <text>&lt;p&gt;Dear Manager,&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;&lt;p&gt;A loan request has been submitted exceeding 250,000 ₪.&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;&lt;p&gt;Customer: &lt;span style=&quot;background-color: rgb(255, 255, 255);&quot;&gt;{!$Record.Customer__r.Name}&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Loan Amount: {!$Record.LoanAmount__c}&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;&lt;p&gt;Please review the request.&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;&lt;p&gt;Regards,&lt;/p&gt;&lt;p&gt;Salesforce System&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;</text>
+        <isViewedAsPlainText>true</isViewedAsPlainText>
+        <text>Dear Manager,
+
+A loan request has been submitted exceeding 250,000 ₪.
+
+Customer: {!$Record.Customer__r.Name}
+Loan Amount: {!$Record.LoanAmount__c}
+
+Please review the request.
+
+Regards,
+Salesforce System</text>
     </textTemplates>
     <textTemplates>
         <name>email_subject</name>
