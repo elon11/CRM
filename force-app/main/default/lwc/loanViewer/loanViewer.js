@@ -19,7 +19,7 @@ export default class LoanViewer extends LightningElement {
         this.loanAmount = loanData.LoanAmount__c;
         this.loanStatus = loanData.LoanStatus__c;
 
-        // 🔹 שמירת ה-Id ב-sessionStorage כדי לשמור על הנתונים אחרי רפרוש
+        // 🔹Saving the Id in sessionStorage to preserve the data after refresh
         if (loanData.Id) {
             window.sessionStorage.setItem('lastLoanId', loanData.Id);
         }

@@ -45,10 +45,10 @@ export default class LoanForm extends LightningElement {
             this.isLoading = false;
             this.showToast('Success', 'Loan request created successfully.', 'success');
 
-            // 🔹 שמירת ה-Id ב-sessionStorage כדי לשמור על הנתונים אחרי רפרוש
+            // 🔹Saving the Id in sessionStorage to preserve the data after refresh
             window.sessionStorage.setItem('lastLoanId', result.Id);
 
-            // אירוע pubsub
+          
             fireEvent('loanCreated', result);
 
             // Reset form
