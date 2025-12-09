@@ -7,35 +7,6 @@
  */
 public with sharing class LoanRequestsTriggerHandler {
 
-    /**
-     * @Method Name: beforeInsert
-     * @Input: List<LoanRequest__c> newRecords
-     * @Description: Populates default values for new LoanRequest__c records before insertion.
-     */
-    public void beforeInsert(List<LoanRequest__c> newRecords) {
-        for (LoanRequest__c req : newRecords) {
-            if (req.RequestDate__c == null) {
-                req.RequestDate__c = Date.today();
-            }
-            if (String.isBlank(req.LoanStatus__c)) {
-                req.LoanStatus__c = 'Draft';
-            }
-        }
-    }
-
-    /**
-     * @Method Name: beforeUpdate
-     * @Input: List<LoanRequest__c> newRecords, Map<Id, LoanRequest__c> oldMap
-     * @Description: Prevents regression in LoanStatus__c and validates updates before saving.
-     */
-    public void beforeUpdate(List<LoanRequest__c> newRecords, Map<Id, LoanRequest__c> oldMap) {
-        for (LoanRequest__c req : newRecords) {
-            LoanRequest__c oldRec = oldMap.get(req.Id);
-            if (oldRec != null && oldRec.LoanStatus__c == 'Approved' && req.LoanStatus__c == 'Draft') {
-                req.LoanStatus__c = oldRec.LoanStatus__c;
-            }
-        }
-    }
 
     /**
      * @Method Name: afterInsert

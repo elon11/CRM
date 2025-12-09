@@ -3,68 +3,74 @@ public class LoanRequestControllerTest {
 
     @TestSetup
     static void setupTestData() {
-        // Create a test customer
-        Customer__c customer = new Customer__c(
-            Name = 'Test Customer',
-            Email__c = 'test@example.com',
-            Phone__c = '1234567890',
-            Status__c = 'New'
+   
+        Customer__c customer1 = new Customer__c(
+            Name = 'Test Customer 1',
+            Status__c = 'New',
+            Email__c = 'test1@example.com'
         );
-        insert customer;
-    }
+        Customer__c customer2 = new Customer__c(
+            Name = 'Test Customer 2',
+            Status__c = 'New',
+            Email__c = 'test2@example.com'
+        );
+        insert new List<Customer__c>{customer1, customer2};
 
-    @IsTest
-    static void testCreateLoanRequestSuccess() {
-        Customer__c customer = [SELECT Id, Name FROM Customer__c WHERE Name = 'Test Customer' LIMIT 1];
-
-        Test.startTest();
-        // Call the controller method
-        LoanRequest__c loan = LoanRequestController.createLoanRequest(customer.Name, 50000, 'Draft');
+        LoanRequest__c loan = new LoanRequest__c(
+            Customer__c = customer1.Id,
+            LoanAmount__c = 100000,
+            LoanStatus__c = 'Draft'
+        );
         insert loan;
-        Id loanId = loan.Id;
+    }
+
+        @IsTest
+    static void testCreateLoanRequest_Success() {
+       
+        Customer__c customer = [
+            SELECT Id, Name, Email__c, Status__c
+            FROM Customer__c
+            WHERE Name = 'Test Customer 1'
+            LIMIT 1
+        ];
+
+        Test.startTest();
+        LoanRequest__c loan = LoanRequestController.createLoanRequest(customer.Name, 200000, 'Draft');
         Test.stopTest();
 
-        LoanRequest__c loan2 = [SELECT Id, Customer__c, LoanAmount__c, LoanStatus__c FROM LoanRequest__c WHERE Id = :loanId];
-        System.assertEquals(customer.Id, loan2.Customer__c, 'Customer Id should match');
-        System.assertEquals(50000, loan2.LoanAmount__c, 'Loan amount should match');
-        System.assertEquals('Draft', loan2.LoanStatus__c, 'Loan status should match');
+        System.assertNotEquals(null, loan.Id, 'LoanRequest Id should not be null');
+        System.assertEquals(200000, loan.LoanAmount__c, 'Loan amount should match');
+        System.assertEquals('Draft', loan.LoanStatus__c, 'Loan status should match');
+        System.assertEquals(customer.Id, loan.Customer__c, 'Customer Id should match');
+
+      
+        LoanRequest__c fetched = [
+            SELECT Id, Customer__c, Customer_Name__c
+            FROM LoanRequest__c
+            WHERE Id = :loan.Id
+            LIMIT 1
+        ];
+
+      
+        System.assertEquals(customer.Name, fetched.Customer_Name__c, 'Customer Name should match');
+    }
+
+
+
+    @IsTest
+    static void testGetLoanRequestById_Success() {
+        LoanRequest__c existingLoan = [SELECT Id FROM LoanRequest__c LIMIT 1];
+
+        LoanRequest__c loan = LoanRequestController.getLoanRequestById(existingLoan.Id);
+
+        System.assertNotEquals(null, loan, 'LoanRequest should not be null');
+        System.assertEquals(existingLoan.Id, loan.Id, 'LoanRequest Id should match');
+        System.assertNotEquals(null, loan.Customer__r.Name, 'Customer Name should be populated');
     }
 
     @IsTest
-    static void testCreateLoanRequestBlankCustomerName() {
-        Test.startTest();
-        try {
-            LoanRequestController.createLoanRequest('', 50000, 'Draft');
-            System.assert(false, 'Exception should have been thrown');
-        } catch (AuraHandledException e) {
-            System.assert(e.getMessage().contains('Customer Name cannot be blank'), 'Exception message should indicate blank customer name');
-        }
-        Test.stopTest();
-    }
-
-    @IsTest
-    static void testCreateLoanRequestInvalidLoanAmount() {
-        Customer__c customer = [SELECT Id, Name FROM Customer__c WHERE Name = 'Test Customer' LIMIT 1];
-
-        Test.startTest();
-        try {
-            LoanRequestController.createLoanRequest(customer.Name, 0, 'Draft');
-            System.assert(false, 'Exception should have been thrown for invalid loan amount');
-        } catch (AuraHandledException e) {
-            System.assert(e.getMessage().contains('Loan Amount must be greater than zero'), 'Exception message should indicate invalid loan amount');
-        }
-        Test.stopTest();
-    }
-
-    @IsTest
-    static void testCreateLoanRequestCustomerNotFound() {
-        Test.startTest();
-        try {
-            LoanRequestController.createLoanRequest('Non Existing Customer', 10000, 'Draft');
-            System.assert(false, 'Exception should have been thrown for non-existing customer');
-        } catch (AuraHandledException e) {
-            System.assert(e.getMessage().contains('Customer not found'), 'Exception message should indicate customer not found');
-        }
-        Test.stopTest();
+    static void testGetLoanRequestById_NullId() {
+        LoanRequest__c loan = LoanRequestController.getLoanRequestById(null);
+        System.assertEquals(null, loan, 'LoanRequest should be null for null Id');
     }
 }

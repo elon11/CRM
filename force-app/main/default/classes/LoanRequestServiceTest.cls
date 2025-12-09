@@ -3,66 +3,80 @@ public class LoanRequestServiceTest {
 
     @TestSetup
     static void setupTestData() {
-        // Create test customers
-        List<Customer__c> customers = new List<Customer__c>();
-        for (Integer i = 1; i <= 2; i++) {
-            customers.add(new Customer__c(
-                Name = 'Customer ' + i,
-                Email__c = 'customer' + i + '@example.com',
-                Phone__c = '05012345' + i
-            ));
-        }
-        insert customers;
+        Customer__c customer = new Customer__c(
+            Name = 'Test Customer',
+            Email__c = 'test@example.com',
+            Phone__c = '0501234567',
+            Status__c = 'New'
+        );
+        insert customer;
+    }
 
-        // Create test LoanRequests
-        List<LoanRequest__c> loans = new List<LoanRequest__c>();
-        loans.add(new LoanRequest__c(
-            Customer__c = customers[0].Id,
+    @IsTest
+    static void testHighAmountTaskCreation() {
+        Customer__c customer = [SELECT Id FROM Customer__c LIMIT 1];
+        LoanRequest__c highLoan = new LoanRequest__c(
+            Customer__c = customer.Id,
+            LoanAmount__c = 300000, 
+            LoanStatus__c = 'Draft'
+        );
+        LoanRequest__c lowLoan = new LoanRequest__c(
+            Customer__c = customer.Id,
+            LoanAmount__c = 200000, 
+            LoanStatus__c = 'Draft'
+        );
+
+        insert new List<LoanRequest__c>{highLoan, lowLoan};
+
+       
+        Test.startTest();
+        LoanRequestService.createHighAmountTasks(new List<LoanRequest__c>{highLoan, lowLoan});
+        Test.stopTest();
+
+      
+        List<Task> tasks = [SELECT Id, Subject, WhatId, Status, Priority, Description 
+                            FROM Task 
+                            WHERE WhatId IN :new List<Id>{highLoan.Id, lowLoan.Id}];
+
+       
+        System.assertEquals(1, tasks.size(), 'Should create exactly 1 task for high loan amount');
+
+     
+        Task createdTask = tasks[0];
+        System.assertEquals(highLoan.Id, createdTask.WhatId, 'Task should be linked to the high amount loan');
+        System.assertEquals('High Loan Amount Approval Needed', createdTask.Subject, 'Task subject should be correct');
+        System.assertEquals('Not Started', createdTask.Status, 'Task status should be correct');
+        System.assertEquals('High', createdTask.Priority, 'Task priority should be correct');
+        System.assert(createdTask.Description.contains('over 250,000'), 'Task description should mention high amount');
+    }
+
+
+   
+    @IsTest
+    static void testSendApprovalEmailToCustomer() {
+        Customer__c customer = [SELECT Id, Email__c FROM Customer__c LIMIT 1];
+
+        
+        LoanRequest__c loan = new LoanRequest__c(
+            Customer__c = customer.Id,
             LoanAmount__c = 100000,
-            LoanStatus__c = 'Draft',
-            RequestDate__c = Date.today()
-        ));
-        loans.add(new LoanRequest__c(
-            Customer__c = customers[1].Id,
-            LoanAmount__c = 300000, // High amount
-            LoanStatus__c = 'Draft',
-            RequestDate__c = Date.today()
-        ));
-        insert loans;
-    }
+            LoanStatus__c = 'Draft'
+        );
+        insert loan;
 
-    @IsTest
-    static void testCreateHighAmountTasks() {
-        List<LoanRequest__c> loans = [SELECT Id, LoanAmount__c FROM LoanRequest__c];
+      
+        LoanRequest__c oldLoan = loan.clone(false, true);
+        Map<Id, LoanRequest__c> oldMap = new Map<Id, LoanRequest__c>{ loan.Id => oldLoan };
+
+   
+        loan.LoanStatus__c = 'Approved';
+        update loan;
 
         Test.startTest();
-        LoanRequestService.createHighAmountTasks(loans);
+        LoanRequestService.sendApprovalEmails(new List<LoanRequest__c>{loan}, oldMap);
         Test.stopTest();
-
-        // Verify that Task was created for high amount loan only
-        List<Task> tasks = [SELECT Id, Subject, WhatId, Priority FROM Task WHERE WhatId IN :loans];
-        System.assertEquals(1, tasks.size(), 'Only one Task should be created for loan > 250,000');
-        System.assertEquals('High Loan Amount Approval Needed', tasks[0].Subject);
-        System.assertEquals('High', tasks[0].Priority);
-    }
-
-    @IsTest
-    static void testSendApprovalEmails() {
-        List<LoanRequest__c> loans = [SELECT Id, LoanStatus__c, Customer__c FROM LoanRequest__c];
-        Map<Id, LoanRequest__c> oldMap = new Map<Id, LoanRequest__c>();
-        for (LoanRequest__c l : loans) {
-            oldMap.put(l.Id, l.clone(false, true, false, false));
-        }
-
-        // Update one loan to Approved
-        LoanRequest__c toUpdate = loans[1];
-        toUpdate.LoanStatus__c = 'Approved';
-
-        Test.startTest();
-        update toUpdate; // trigger will call service
-        Test.stopTest();
-
-        // Since email sending cannot be queried, we assert by checking limits usage
+        
         System.assertEquals(1, Limits.getEmailInvocations(), 'One email should have been invoked');
     }
+
 }
