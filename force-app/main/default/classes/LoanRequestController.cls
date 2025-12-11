@@ -31,10 +31,12 @@ public with sharing class LoanRequestController {
             LoanAmount__c = loanAmount,
             LoanStatus__c = loanStatus
         );
-
         try {
             insert loan;
         } catch (DmlException de) {
+            if (de.getMessage().contains('Loan Amount must be positive')) {
+                throw de;
+            }
             throw new AuraHandledException('Error creating loan request: ' + de.getMessage());
         }
 

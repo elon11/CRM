@@ -73,4 +73,17 @@ public class LoanRequestControllerTest {
         LoanRequest__c loan = LoanRequestController.getLoanRequestById(null);
         System.assertEquals(null, loan, 'LoanRequest should be null for null Id');
     }
+
+    @IsTest
+    static void testCreateLoanRequest_NegativeAmount() {
+        Customer__c customer = [SELECT Id, Name FROM Customer__c LIMIT 1];
+
+        try {
+            LoanRequest__c loan = LoanRequestController.createLoanRequest(customer.Name, -5000, 'Draft');
+            System.assert(false, 'Insert should fail due to negative loan amount');
+        } catch (DmlException e) {
+            System.assert(e.getMessage().contains('Loan Amount must be positive'),
+                        'Expected validation rule exception for negative amount');
+        }
+    }
 }
