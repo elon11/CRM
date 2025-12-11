@@ -18,7 +18,7 @@ public with sharing class LoanRequestsTriggerHandler {
 
         for (LoanRequest__c req : newRecords) {
             Audit__c a = new Audit__c();
-            a.Customer__c = req.Customer__c;
+            a.Customer_custom__c = req.Customer__c;
             a.Loan_Request__c = req.Id;
             a.Loan_Amount__c = req.LoanAmount__c;
             a.Loan_Status__c = req.LoanStatus__c;
@@ -51,7 +51,7 @@ public with sharing class LoanRequestsTriggerHandler {
 
             if (req.LoanStatus__c != oldRec.LoanStatus__c) {
                 Audit__c a = new Audit__c();
-                a.Customer__c = req.Customer__c;
+                a.Customer_custom__c = req.Customer__c;
                 a.Loan_Request__c = req.Id;
                 a.Loan_Amount__c = req.LoanAmount__c;
                 a.Loan_Status__c = req.LoanStatus__c;
