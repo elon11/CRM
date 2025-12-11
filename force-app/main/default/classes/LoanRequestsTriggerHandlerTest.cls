@@ -101,7 +101,6 @@ public class LoanRequestsTriggerHandlerTest {
 
         System.assert(exceptionThrown, 'Insert should fail due to invalid loan amount.');
 
-        // וודא שלא נוצרו רשומות Audit
         List<Audit__c> audits = [
             SELECT Id FROM Audit__c
             WHERE Loan_Request__c IN (SELECT Id FROM LoanRequest__c WHERE LoanAmount__c = -1000)
