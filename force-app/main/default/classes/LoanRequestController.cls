@@ -5,7 +5,20 @@
  * @Created Date: 2025-12-06
  */
 public with sharing class LoanRequestController {
-
+ /**
+     * @Method Name: createLoanRequest
+     * @Input: 
+     *   String customerName - Name of the customer for whom the loan request is created
+     *   Decimal loanAmount - Amount of the loan
+     *   String loanStatus - Status of the loan request (e.g., 'Draft', 'Approved')
+     * @Output: LoanRequest__c - the newly created LoanRequest__c record with populated Customer__r.Name
+     * @Description: Creates a new LoanRequest__c record linked to an existing Customer__c.
+     *              Validates required fields and positive loan amounts.
+     *              Returns the fully populated record, suitable for LWC consumption.
+     *              Throws AuraHandledException for user-friendly error reporting.
+     * @Created by: Elon Ifrach
+     * @Created Date: 2025-12-06
+     */
     @AuraEnabled
     public static LoanRequest__c createLoanRequest(String customerName, Decimal loanAmount, String loanStatus) {
         if (String.isBlank(customerName)) {
